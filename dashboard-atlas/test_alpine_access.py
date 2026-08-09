@@ -1,5 +1,5 @@
 import sys
-from collectors.ssh_client import get_alpine_container_id, ensure_sshpass_installed, ssh_execute
+from collectors.ssh_client import get_alpine_container_id, ssh_execute
 
 def test_alpine():
     print("==================================================")
@@ -12,13 +12,8 @@ def test_alpine():
         container_id = get_alpine_container_id()
         print(f"   ✅ Conteneur Alpine trouvé ! ID = {container_id}")
 
-        # 2. Test d'installation/vérification de sshpass
-        print("\n2. Vérification de 'sshpass' dans le conteneur Alpine...")
-        ensure_sshpass_installed(container_id)
-        print("   ✅ Paquet 'sshpass' disponible et opérationnel.")
-
-        # 3. Test de connectivité SSH vers l'équipement via Docker exec
-        print("\n3. Test d'exécution SSH vers le routeur (CSR-BGR-1)...")
+        # 2. Test de connectivité SSH vers l'équipement via Docker exec (SSH_ASKPASS natif)
+        print("\n2. Test d'exécution SSH vers le routeur (CSR-BGR-1)...")
         res = ssh_execute(
             ip="10.100.40.2",
             username="admin",

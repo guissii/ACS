@@ -20,7 +20,7 @@ def get_alpine_container_id():
         if check.stdout.strip():
             return _cached_container_id
 
-    # 1. Essai par nom de conteneur direct "alpine-admin"
+    # 1. Essai par nom de conteneur direct "alpine"
     res = subprocess.run(
         ["docker", "ps", "--filter", "name=alpine", "--format", "{{.ID}}"],
         capture_output=True, text=True
@@ -54,41 +54,25 @@ def get_alpine_container_id():
     raise Exception("Conteneur alpine-admin introuvable ou arrêté dans Docker.")
 
 
-def ensure_sshpass_installed(container_id):
-    """
-    S'assure que 'sshpass' est disponible dans le conteneur alpine.
-    L'installe automatiquement via 'apk add --no-cache sshpass' si nécessaire.
-    """
-    check = subprocess.run(
-        ["docker", "exec", container_id, "sh", "-c", "which sshpass"],
-        capture_output=True, text=True
-    )
-    if check.returncode != 0:
-        # Auto-installation transparente de sshpass dans le conteneur Alpine
-        subprocess.run(
-            ["docker", "exec", container_id, "sh", "-c", "apk add --no-cache sshpass"],
-            capture_output=True, text=True
-        )
-
-
 def ssh_execute(ip, username, password, command, timeout=30, is_fortigate=False):
     """
     Exécute une commande SSH sur un équipement GNS3 via 'docker exec'
     dans le conteneur alpine-admin.
 
-    Points clés de résilience :
+    Utilise SSH_ASKPASS natif OpenSSH (aucun besoin de sshpass).
     - Détection dynamique de l'ID du conteneur (anti-reset GNS3)
-    - Auto-installation de sshpass dans le conteneur si absent
-    - Syntax exacte sans espaces pour -oKexAlgorithms et -oHostKeyAlgorithms
+    - Syntaxe exacte sans espaces pour -oKexAlgorithms et -oHostKeyAlgorithms
     - Guard anti-replay / anti-deadlock avec ServerAliveInterval=5 et ServerAliveCountMax=2
     """
     try:
         container_id = get_alpine_container_id()
-        ensure_sshpass_installed(container_id)
 
-        # Syntax exacte sans espace après le -o
+        # Injection SSH_ASKPASS natif dans le conteneur Alpine
+        askpass_setup = f"echo '#!/bin/sh' > /tmp/ap.sh && echo 'echo \"{password}\"' >> /tmp/ap.sh && chmod +x /tmp/ap.sh"
+
         ssh_cmd = (
-            f"sshpass -p '{password}' ssh "
+            f"{askpass_setup} && "
+            f"SSH_ASKPASS=/tmp/ap.sh DISPLAY=:0 SSH_ASKPASS_REQUIRE=force ssh "
             f"-oStrictHostKeyChecking=no "
             f"-oKexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1 "
             f"-oHostKeyAlgorithms=+ssh-rsa "
