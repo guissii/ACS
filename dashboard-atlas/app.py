@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from automation.ansible_runner import run_playbook, perform_direct_backup
+from collectors.ssh_client import ssh_execute
 import os
 import glob
 import datetime
@@ -13,7 +14,7 @@ app.config['SECRET_KEY'] = 'atlas_secret_key'
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# --- ROUTES DE MONITORING (Lecture Seule) ---
+# --- ROUTES DE MONITORING & STATUT TEMPS RÉEL ---
 
 @app.route('/api/vrrp/all', methods=['GET'])
 def get_vrrp_all():
@@ -25,6 +26,43 @@ def get_vrrp_all():
 @app.route('/api/sdwan/<equipment>', methods=['GET'])
 def get_sdwan(equipment):
     return jsonify({"equipment": equipment, "sdwan_health": "ok"})
+
+@app.route('/api/devices/status', methods=['GET'])
+def get_devices_status():
+    """
+    Scanne dynamiquement en temps réel le statut d'alimentation/joignabilité
+    de chaque équipement GNS3 via le relais Alpine.
+    """
+    devices = [
+        {"id": "csr-bgr-1", "name": "CSR-BGR-1", "ip": "10.100.40.2", "type": "csr"},
+        {"id": "csr-bgr-2", "name": "CSR-BGR-2", "ip": "10.100.41.2", "type": "csr"},
+        {"id": "csr-bkp-1", "name": "CSR-BKP-1", "ip": "10.200.40.2", "type": "csr"},
+        {"id": "csr-bkp-2", "name": "CSR-BKP-2", "ip": "10.200.41.2", "type": "csr"},
+        {"id": "fgt-bgr-1-1", "name": "FGT-BGR-1-1", "ip": "10.100.40.1", "type": "fortigate"},
+        {"id": "fgt-bkp-1-1", "name": "FGT-BKP-1-1", "ip": "10.200.40.1", "type": "fortigate"},
+    ]
+    status_map = {}
+    for dev in devices:
+        cmd = "show ip int brief" if dev["type"] == "csr" else "get system status"
+        res = ssh_execute(
+            ip=dev["ip"],
+            username="admin",
+            password="admin",
+            command=cmd,
+            timeout=4,
+            is_fortigate=(dev["type"] == "fortigate")
+        )
+        is_online = res.get("success", False)
+        status_map[dev["name"]] = {
+            "id": dev["id"],
+            "name": dev["name"],
+            "ip": dev["ip"],
+            "type": dev["type"],
+            "online": is_online,
+            "status": "online" if is_online else "offline",
+            "error": res.get("error", None) if not is_online else None
+        }
+    return jsonify(status_map)
 
 # --- ROUTES D'AUTOMATISATION (Ansible / Direct SSH Relay) ---
 
@@ -38,7 +76,6 @@ def create_vlan():
     if not all(k in data for k in required_keys):
         return jsonify({"error": f"Clés manquantes, requis: {required_keys}"}), 400
 
-    # Déterminer les hosts selon le site
     site = data.get('site', 'benguerir')
     if site == 'benguerir':
         master_host = 'CSR-BGR-1'
@@ -107,6 +144,17 @@ def list_backups():
             })
             
     return jsonify(backups)
+
+@app.route('/api/automation/backup-content/<filename>', methods=['GET'])
+def get_backup_content(filename):
+    base_dir = os.path.dirname(__file__)
+    for cat in ['csr', 'fortigate']:
+        filepath = os.path.join(base_dir, 'backups', cat, filename)
+        if os.path.exists(filepath):
+            with open(filepath, 'r') as f:
+                content = f.read()
+            return jsonify({"filename": filename, "content": content})
+    return jsonify({"error": "Fichier introuvable"}), 404
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -12,7 +12,15 @@ import {
   Info,
   Cable,
   Play,
-  RefreshCcw
+  RefreshCcw,
+  Activity,
+  Power,
+  Terminal,
+  FileText,
+  Download,
+  Copy,
+  X,
+  Check
 } from "lucide-react";
 import {
   Sheet,
@@ -522,6 +530,70 @@ export default function Architecture() {
   // URL du backend Flask sur la VM Ubuntu
   const API_BASE_URL = "http://192.168.48.129:5000/api";
 
+  const [devicesStatus, setDevicesStatus] = useState<Record<string, { online: boolean, status: string, error?: string }>>({});
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+  
+  // Modal de visualisation de sauvegarde
+  const [backupModalOpen, setBackupModalOpen] = useState(false);
+  const [backupContent, setBackupContent] = useState<string | null>(null);
+  const [backupTitle, setBackupTitle] = useState<string>("");
+  const [isSingleBackingUp, setIsSingleBackingUp] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const fetchStatus = async () => {
+    setIsLoadingStatus(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/devices/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setDevicesStatus(data);
+      }
+    } catch (e) {
+      console.error("Erreur récupération statut temps réel:", e);
+    } finally {
+      setIsLoadingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 20000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleBackupSingleDevice = async (deviceName: string) => {
+    setIsSingleBackingUp(deviceName);
+    try {
+      const res = await fetch(`${API_BASE_URL}/automation/backup/${deviceName}`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setBackupTitle(`Sauvegarde Horodatée - ${deviceName}`);
+        const stdoutStr = data.stdout || "";
+        const fileMatch = stdoutStr.match(/->\s*(.+)/);
+        if (fileMatch) {
+          const filepath = fileMatch[1].trim();
+          const filename = filepath.split('/').pop();
+          const contentRes = await fetch(`${API_BASE_URL}/automation/backup-content/${filename}`);
+          if (contentRes.ok) {
+            const contentData = await contentRes.json();
+            setBackupContent(contentData.content);
+          } else {
+            setBackupContent(data.stdout);
+          }
+        } else {
+          setBackupContent(data.stdout);
+        }
+        setBackupModalOpen(true);
+      } else {
+        alert(`❌ Échec de la sauvegarde pour ${deviceName}: ${data.stderr || data.error || 'Équipement hors tension'}`);
+      }
+    } catch (e) {
+      alert(`❌ Impossible de contacter le serveur Flask pour ${deviceName}.`);
+    } finally {
+      setIsSingleBackingUp(null);
+    }
+  };
+
   const handleBackupAll = async () => {
     setIsBackingUp(true);
     try {
@@ -822,6 +894,9 @@ export default function Architecture() {
               const px = node.x * (CANVAS_W / 100);
               const py = node.y * (CANVAS_H / 100);
 
+              const devStatus = devicesStatus[node.name];
+              const isOnline = devStatus ? devStatus.online : (node.status === 'active');
+
               return (
                 <button
                   key={node.id}
@@ -829,10 +904,11 @@ export default function Architecture() {
                   className="absolute flex flex-col items-center gap-1.5 transition-all -translate-x-1/2 -translate-y-1/2 group pointer-events-auto"
                   style={{ left: `${px}px`, top: `${py}px` }}
                 >
-                  <div className={`bg-white rounded-[6px] p-2 border ${node.status === 'active' ? 'border-[#1B3A5C]/20 group-hover:border-[#1B3A5C]' : 'border-gray-200 group-hover:border-[#B45309]'} shadow-sm group-hover:shadow-md transition-all`}>
+                  <div className={`bg-white rounded-[6px] p-2 border ${devStatus ? (devStatus.online ? 'border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'border-red-400') : (node.status === 'active' ? 'border-[#1B3A5C]/20' : 'border-gray-200')} shadow-sm group-hover:shadow-md transition-all`}>
                     {getEquipmentIcon(node.type, node.status)}
                   </div>
-                  <div className="bg-white/90 backdrop-blur px-2 py-0.5 rounded-[4px] border border-border text-[10px] font-semibold text-[#1A1D23] whitespace-nowrap shadow-sm">
+                  <div className="bg-white/90 backdrop-blur px-2 py-0.5 rounded-[4px] border border-border text-[10px] font-semibold text-[#1A1D23] whitespace-nowrap shadow-sm flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full ${devStatus ? (devStatus.online ? 'bg-emerald-500 shadow-[0_0_6px_#10B981]' : 'bg-red-500 shadow-[0_0_6px_#EF4444]') : 'bg-gray-400'}`} />
                     {node.name}
                   </div>
                 </button>
@@ -1314,6 +1390,41 @@ export default function Architecture() {
                       </div>
                     ) : nodeData?.id && RBGR_CONFIG_DATA[nodeData.id] ? (
                       <div className="space-y-4">
+                        {/* Status Temps Réel & Sauvegarde Ciblée */}
+                        {nodeData && (
+                          <div className="p-3 bg-[#F7F8FA] border border-border rounded-lg shadow-sm space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-3 h-3 rounded-full ${devicesStatus[nodeData.name]?.online ? 'bg-emerald-500 shadow-[0_0_8px_#10B981] animate-pulse' : 'bg-red-500 shadow-[0_0_8px_#EF4444]'}`} />
+                                <span className="font-bold text-xs">
+                                  {devicesStatus[nodeData.name]?.online ? 'Équipement Allumé & En Ligne' : 'Équipement Éteint / Inaccessible'}
+                                </span>
+                              </div>
+                              <Badge className={devicesStatus[nodeData.name]?.online ? 'bg-emerald-600' : 'bg-red-600'}>
+                                {devicesStatus[nodeData.name]?.online ? 'EN LIGNE' : 'HORS TENSION'}
+                              </Badge>
+                            </div>
+
+                            <button
+                              onClick={() => handleBackupSingleDevice(nodeData.name)}
+                              disabled={isSingleBackingUp === nodeData.name || !devicesStatus[nodeData.name]?.online}
+                              className="w-full flex items-center justify-center gap-2 py-2 bg-[#1B3A5C] text-white text-xs font-semibold rounded-md hover:bg-[#1B3A5C]/90 disabled:opacity-50 transition-colors shadow-sm"
+                            >
+                              {isSingleBackingUp === nodeData.name ? (
+                                <>
+                                  <RefreshCcw size={14} className="animate-spin" />
+                                  <span>Sauvegarde de {nodeData.name}...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <HardDrive size={14} />
+                                  <span>Sauvegarder {nodeData.name}</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
                         {/* Summary & Identity */}
                         <div className="space-y-2">
                            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
@@ -1543,8 +1654,67 @@ export default function Architecture() {
               </div>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+      {/* Modal de Sauvegarde Horodatée */}
+      {backupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl border border-border w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-[#1B3A5C] text-white">
+              <div className="flex items-center gap-2">
+                <FileText size={20} className="text-emerald-400" />
+                <h3 className="font-bold text-base">{backupTitle}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (backupContent) {
+                      navigator.clipboard.writeText(backupContent);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                  <span>{copied ? "Copié !" : "Copier"}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (backupContent) {
+                      const blob = new Blob([backupContent], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${backupTitle.replace(/\s+/g, '_')}.txt`;
+                      a.click();
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Download size={14} />
+                  <span>Télécharger</span>
+                </button>
+                <button
+                  onClick={() => setBackupModalOpen(false)}
+                  className="p-1.5 text-white/70 hover:text-white rounded hover:bg-white/10 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto bg-[#1A1D23] font-mono text-xs text-emerald-400 space-y-1 leading-relaxed">
+              <pre className="whitespace-pre-wrap font-mono">{backupContent}</pre>
+            </div>
+            <div className="px-6 py-3 border-t border-border bg-gray-50 text-right">
+              <button
+                onClick={() => setBackupModalOpen(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg text-xs font-semibold hover:bg-gray-300 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
