@@ -1,0 +1,42 @@
+---
+- name: Create VLAN subinterface and VRRP on Master CSR
+  hosts: "{{ master_host }}"
+  gather_facts: no
+  vars:
+    ansible_network_os: ios
+  tasks:
+    - name: Configure Master subinterface and VRRP
+      ios_config:
+        lines:
+          - "encapsulation dot1Q {{ vlan_id }}"
+          - "ip address {{ subnet_master }} 255.255.255.0"
+          - "vrrp {{ vlan_id }} ip {{ vip_address }}"
+          - "vrrp {{ vlan_id }} priority 110"
+          - "vrrp {{ vlan_id }} preempt"
+          - "no shutdown"
+        parents: "interface {{ physical_interface_master }}.{{ vlan_id }}"
+      
+    - name: Save configuration on Master
+      ios_config:
+        save_when: always
+
+- name: Create VLAN subinterface and VRRP on Backup CSR
+  hosts: "{{ backup_host }}"
+  gather_facts: no
+  vars:
+    ansible_network_os: ios
+  tasks:
+    - name: Configure Backup subinterface and VRRP
+      ios_config:
+        lines:
+          - "encapsulation dot1Q {{ vlan_id }}"
+          - "ip address {{ subnet_backup }} 255.255.255.0"
+          - "vrrp {{ vlan_id }} ip {{ vip_address }}"
+          - "vrrp {{ vlan_id }} priority 100"
+          - "vrrp {{ vlan_id }} preempt"
+          - "no shutdown"
+        parents: "interface {{ physical_interface_backup }}.{{ vlan_id }}"
+
+    - name: Save configuration on Backup
+      ios_config:
+        save_when: always

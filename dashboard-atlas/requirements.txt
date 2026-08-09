@@ -1,0 +1,6 @@
+flask
+paramiko
+python-dotenv
+flask-socketio
+ansible
+netmiko

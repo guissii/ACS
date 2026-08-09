@@ -1,0 +1,21 @@
+# Dependencies & Virtual Envs
+node_modules/
+**/node_modules/
+venv/
+**/venv/
+.venv/
+**/__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+**/dist/
+build/
+
+# Backups & Logs
+dashboard-atlas/backups/
+*.log
+
+# Environment variables
+.env
+.env.local

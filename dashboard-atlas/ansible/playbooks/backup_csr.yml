@@ -1,0 +1,34 @@
+---
+- name: Backup configuration for CSR routers
+  hosts: csr_benguerir, csr_backup
+  gather_facts: no
+  vars:
+    ansible_network_os: ios
+  tasks:
+    - name: Get timestamp
+      command: date +"%Y%m%d_%H%M%S"
+      register: timestamp_result
+      delegate_to: localhost
+      run_once: true
+
+    - name: Ensure backup directory exists
+      file:
+        path: "../../backups/csr"
+        state: directory
+      delegate_to: localhost
+      run_once: true
+
+    - name: Execute show running-config
+      ios_command:
+        commands: show running-config
+      register: config_output
+
+    - name: Save configuration locally
+      copy:
+        content: "{{ config_output.stdout[0] }}"
+        dest: "../../backups/csr/{{ inventory_hostname }}_{{ timestamp_result.stdout }}.txt"
+      delegate_to: localhost
+
+    - name: Write memory on device
+      ios_config:
+        save_when: always

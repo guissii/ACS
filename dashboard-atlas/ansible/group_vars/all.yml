@@ -1,0 +1,12 @@
+---
+# Pour l'instant, stockées en clair.
+# En environnement de production, utiliser : ansible-vault encrypt all.yml
+vault_username: "admin"
+vault_password: "atlas123"
+
+# ── Jump Host alpine-admin ────────────────────────────────────────────────────
+# La VM Ubuntu (Flask) ne peut pas atteindre directement les équipements GNS3.
+# Toutes les connexions SSH passent par alpine-admin en tant que relais (ProxyJump).
+jump_host_ip:       "192.168.199.4"
+jump_host_user:     "root"
+jump_host_password: "alpine"

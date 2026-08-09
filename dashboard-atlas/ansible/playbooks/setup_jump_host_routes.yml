@@ -1,0 +1,47 @@
+---
+# =============================================================
+# Playbook : setup_jump_host_routes.yml
+# =============================================================
+# But : Ajouter les routes statiques sur alpine-admin (192.168.199.4)
+# pour qu'il puisse atteindre tous les équipements GNS3 gérés.
+#
+# Exécuté depuis la VM Ubuntu en passant par localhost.
+# =============================================================
+
+- name: Configurer les routes sur alpine-admin (Jump Host)
+  hosts: localhost
+  gather_facts: no
+  connection: local
+  vars:
+    jump_host_ip:       "192.168.199.4"
+    jump_host_user:     "root"
+    jump_host_password: "alpine"
+    mgmt_gw:            "192.168.199.2"
+
+    routes_to_add:
+      - "10.100.40.0/30"   # CSR-BGR-1
+      - "10.100.41.0/30"   # CSR-BGR-2
+      - "10.200.40.0/30"   # CSR-BKP-1 + FGT-BKP
+      - "10.200.41.0/30"   # CSR-BKP-2
+
+  tasks:
+    - name: Ajouter chaque route via SSH sur alpine-admin
+      shell: |
+        sshpass -p "{{ jump_host_password }}" ssh \
+          -o StrictHostKeyChecking=no \
+          -o ConnectTimeout=10 \
+          {{ jump_host_user }}@{{ jump_host_ip }} \
+          "ip route add {{ item }} via {{ mgmt_gw }} || true"
+      loop: "{{ routes_to_add }}"
+
+    - name: Verifier les routes actives sur alpine-admin
+      shell: |
+        sshpass -p "{{ jump_host_password }}" ssh \
+          -o StrictHostKeyChecking=no \
+          {{ jump_host_user }}@{{ jump_host_ip }} \
+          "ip route show"
+      register: routes_result
+
+    - name: Afficher les routes actives
+      debug:
+        var: routes_result.stdout_lines

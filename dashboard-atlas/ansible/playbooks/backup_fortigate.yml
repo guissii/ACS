@@ -1,0 +1,34 @@
+---
+- name: Backup configuration for FortiGate
+  hosts: fortigate
+  gather_facts: no
+  vars:
+    ansible_network_os: fortios
+  tasks:
+    - name: Get timestamp
+      command: date +"%Y%m%d_%H%M%S"
+      register: timestamp_result
+      delegate_to: localhost
+      run_once: true
+
+    - name: Ensure backup directory exists
+      file:
+        path: "../../backups/fortigate"
+        state: directory
+      delegate_to: localhost
+      run_once: true
+
+    - name: Execute show full-configuration
+      cli_command:
+        command: show full-configuration
+      register: config_output
+
+    - name: Save configuration locally
+      copy:
+        content: "{{ config_output.stdout }}"
+        dest: "../../backups/fortigate/{{ inventory_hostname }}_{{ timestamp_result.stdout }}.txt"
+      delegate_to: localhost
+
+    - name: Trigger local flash backup on FortiGate
+      cli_command:
+        command: execute backup config flash

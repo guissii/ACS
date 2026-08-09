@@ -1,0 +1,3 @@
+---
+- import_playbook: backup_csr.yml
+- import_playbook: backup_fortigate.yml
