@@ -32,25 +32,36 @@ def log_action(playbook_name, extra_vars, result):
 
 def perform_direct_backup(equipment_type):
     """
-    Exécute le backup ultra-fiable via le relais Alpine natif.
-    Génère directement les fichiers .txt horodatés sous backups/csr et backups/fortigate.
+    Exécute le backup ciblé ou global via le relais Alpine natif.
+    Supporte les noms d'équipements spécifiques (ex: CSR-BGR-1, CSR-BGR-2).
     """
     base_dir = os.path.dirname(os.path.dirname(__file__))
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     
-    inventory = []
-    if equipment_type in ['csr', 'all']:
-        inventory.extend([
-            {'name': 'CSR-BGR-1', 'ip': '10.100.40.2', 'cmd': 'show running-config', 'type': 'csr'},
-            {'name': 'CSR-BGR-2', 'ip': '10.100.41.2', 'cmd': 'show running-config', 'type': 'csr'},
-            {'name': 'CSR-BKP-1', 'ip': '10.200.40.2', 'cmd': 'show running-config', 'type': 'csr'},
-            {'name': 'CSR-BKP-2', 'ip': '10.200.41.2', 'cmd': 'show running-config', 'type': 'csr'},
-        ])
-    if equipment_type in ['fortigate', 'all']:
-        inventory.extend([
-            {'name': 'FGT-BGR-1-1', 'ip': '10.100.40.1', 'cmd': 'get system status', 'type': 'fortigate', 'is_fgt': True},
-            {'name': 'FGT-BKP-1-1', 'ip': '10.200.40.1', 'cmd': 'get system status', 'type': 'fortigate', 'is_fgt': True},
-        ])
+    all_devices = [
+        {'name': 'CSR-BGR-1', 'ip': '10.100.40.2', 'cmd': 'show running-config', 'type': 'csr'},
+        {'name': 'CSR-BGR-2', 'ip': '10.100.41.2', 'cmd': 'show running-config', 'type': 'csr'},
+        {'name': 'CSR-BKP-1', 'ip': '10.200.40.2', 'cmd': 'show running-config', 'type': 'csr'},
+        {'name': 'CSR-BKP-2', 'ip': '10.200.41.2', 'cmd': 'show running-config', 'type': 'csr'},
+        {'name': 'FGT-BGR-1-1', 'ip': '10.100.40.1', 'cmd': 'get system status', 'type': 'fortigate', 'is_fgt': True},
+        {'name': 'FGT-BKP-1-1', 'ip': '10.200.40.1', 'cmd': 'get system status', 'type': 'fortigate', 'is_fgt': True},
+    ]
+
+    target = equipment_type.lower()
+    if target == 'all':
+        inventory = all_devices
+    elif target in ['benguerir', 'csr-benguerir']:
+        inventory = [d for d in all_devices if d['name'] in ['CSR-BGR-1', 'CSR-BGR-2']]
+    elif target == 'csr':
+        inventory = [d for d in all_devices if d['type'] == 'csr']
+    elif target == 'fortigate':
+        inventory = [d for d in all_devices if d['type'] == 'fortigate']
+    else:
+        # Filtrer l'équipement spécifique par son nom (ex: CSR-BGR-1)
+        inventory = [d for d in all_devices if target in d['name'].lower()]
+
+    if not inventory:
+        inventory = [all_devices[0]]  # Fallback CSR-BGR-1 si non trouvé
 
     results = []
     success_count = 0
