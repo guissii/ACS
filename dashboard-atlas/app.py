@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO
 from flask_cors import CORS
-from automation.ansible_runner import run_playbook
+from automation.ansible_runner import run_playbook, perform_direct_backup
 import os
 import glob
 import datetime
@@ -26,7 +26,7 @@ def get_vrrp_all():
 def get_sdwan(equipment):
     return jsonify({"equipment": equipment, "sdwan_health": "ok"})
 
-# --- ROUTES D'AUTOMATISATION (Ansible) ---
+# --- ROUTES D'AUTOMATISATION (Ansible / Direct SSH Relay) ---
 
 @app.route('/api/automation/create-vlan', methods=['POST'])
 def create_vlan():
@@ -68,26 +68,21 @@ def create_vlan():
 
 @app.route('/api/automation/backup/<equipment_type>', methods=['POST'])
 def backup_equipment(equipment_type):
-    if equipment_type == 'csr':
-        result = run_playbook('backup_csr.yml')
-    elif equipment_type == 'fortigate':
-        result = run_playbook('backup_fortigate.yml')
-    elif equipment_type == 'all':
-        result = run_playbook('backup_all.yml')
-    else:
+    if equipment_type not in ['csr', 'fortigate', 'all']:
         return jsonify({"error": "Type invalide (csr, fortigate, all)"}), 400
         
+    result = perform_direct_backup(equipment_type)
     return jsonify(result), 200 if result['success'] else 500
 
 # --- ROUTES ASYNCHRONES (WebSocket) ---
 
 def run_backup_async():
     socketio.emit('automation_status', {'message': 'Démarrage du backup global...', 'progress': 10})
-    result = run_playbook('backup_all.yml')
+    result = perform_direct_backup('all')
     if result['success']:
         socketio.emit('automation_status', {'message': 'Backup terminé avec succès !', 'progress': 100})
     else:
-        socketio.emit('automation_status', {'message': 'Erreur lors du backup', 'progress': 100, 'error': result.get('stderr', 'Échec du playbook')})
+        socketio.emit('automation_status', {'message': 'Erreur lors du backup', 'progress': 100, 'error': result.get('stderr', 'Échec du backup')})
 
 @app.route('/api/automation/backup-all-async', methods=['POST'])
 def backup_all_async():

@@ -2,7 +2,7 @@ import subprocess
 import json
 import os
 import datetime
-from collectors.ssh_client import get_alpine_container_id
+from collectors.ssh_client import get_alpine_container_id, ssh_execute
 
 LOG_FILE = os.path.join(os.path.dirname(__file__), '..', 'logs', 'automation.log')
 
@@ -20,7 +20,7 @@ def log_action(playbook_name, extra_vars, result):
                 safe_vars[k] = v
 
     log_entry = (
-        f"[{timestamp}] PLAYBOOK: {playbook_name} | "
+        f"[{timestamp}] ACTION: {playbook_name} | "
         f"VARS: {json.dumps(safe_vars)} | "
         f"SUCCESS: {result.get('success')} | "
         f"RETURN_CODE: {result.get('return_code')}\n"
@@ -30,10 +30,65 @@ def log_action(playbook_name, extra_vars, result):
     with open(LOG_FILE, 'a') as f:
         f.write(log_entry)
 
+def perform_direct_backup(equipment_type):
+    """
+    Exécute le backup ultra-fiable via le relais Alpine natif.
+    Génère directement les fichiers .txt horodatés sous backups/csr et backups/fortigate.
+    """
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    inventory = []
+    if equipment_type in ['csr', 'all']:
+        inventory.extend([
+            {'name': 'CSR-BGR-1', 'ip': '10.100.40.2', 'cmd': 'show running-config', 'type': 'csr'},
+            {'name': 'CSR-BGR-2', 'ip': '10.100.41.2', 'cmd': 'show running-config', 'type': 'csr'},
+            {'name': 'CSR-BKP-1', 'ip': '10.200.40.2', 'cmd': 'show running-config', 'type': 'csr'},
+            {'name': 'CSR-BKP-2', 'ip': '10.200.41.2', 'cmd': 'show running-config', 'type': 'csr'},
+        ])
+    if equipment_type in ['fortigate', 'all']:
+        inventory.extend([
+            {'name': 'FGT-BGR-1-1', 'ip': '10.100.40.1', 'cmd': 'get system status', 'type': 'fortigate', 'is_fgt': True},
+            {'name': 'FGT-BKP-1-1', 'ip': '10.200.40.1', 'cmd': 'get system status', 'type': 'fortigate', 'is_fgt': True},
+        ])
+
+    results = []
+    success_count = 0
+
+    for item in inventory:
+        dest_dir = os.path.join(base_dir, 'backups', item['type'])
+        os.makedirs(dest_dir, exist_ok=True)
+        
+        res = ssh_execute(
+            ip=item['ip'],
+            username='admin',
+            password='admin',
+            command=item['cmd'],
+            is_fortigate=item.get('is_fgt', False)
+        )
+        
+        if res.get('success'):
+            file_path = os.path.join(dest_dir, f"{item['name']}_{timestamp}.txt")
+            with open(file_path, 'w') as f:
+                f.write(res.get('output', ''))
+            results.append(f"SUCCESS: {item['name']} -> {file_path}")
+            success_count += 1
+        else:
+            results.append(f"FAILED: {item['name']} -> {res.get('error')}")
+
+    is_overall_success = success_count > 0
+    res_dict = {
+        "success": is_overall_success,
+        "stdout": "\n".join(results),
+        "stderr": "" if is_overall_success else "Échec de sauvegarde",
+        "return_code": 0 if is_overall_success else 1
+    }
+    log_action(f"backup_{equipment_type}_direct", {}, res_dict)
+    return res_dict
+
 def run_playbook(playbook_name, extra_vars=None):
     """
-    Exécute un playbook Ansible localement en injectant dynamiquement
-    l'ID du conteneur Alpine dans ProxyCommand.
+    Exécute un playbook Ansible localement.
     """
     playbook_path = os.path.join(os.path.dirname(__file__), '..', 'ansible', 'playbooks', playbook_name)
     inventory_path = os.path.join(os.path.dirname(__file__), '..', 'ansible', 'inventory.yml')
@@ -41,7 +96,6 @@ def run_playbook(playbook_name, extra_vars=None):
     if extra_vars is None:
         extra_vars = {}
 
-    # Injection dynamique du ProxyCommand Docker avec l'ID réel du conteneur Alpine
     try:
         container_id = get_alpine_container_id()
         ssh_args = (
@@ -53,7 +107,7 @@ def run_playbook(playbook_name, extra_vars=None):
         )
         extra_vars["ansible_ssh_common_args"] = ssh_args
     except Exception as e:
-        print(f"Avertissement lors de la récupération du conteneur Alpine: {e}")
+        print(f"Avertissement conteneur Alpine: {e}")
 
     command = ['ansible-playbook', '-i', inventory_path, playbook_path]
 
@@ -65,7 +119,6 @@ def run_playbook(playbook_name, extra_vars=None):
         if 'ssh_args' in locals():
             env['ANSIBLE_SSH_COMMON_ARGS'] = ssh_args
 
-        # Exécution avec capture des sorties
         process = subprocess.run(
             command,
             capture_output=True,
