@@ -734,6 +734,7 @@ export default function Architecture() {
           </span>
         </div>
       </div>
+    </div>
 
       <div className="w-full overflow-x-auto bg-[#F7F8FA] border border-border rounded-xl shadow-sm">
         {/* Conteneur principal fixe (1200x1600) scrollable sur petits écrans */}
