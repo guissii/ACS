@@ -25,6 +25,7 @@ def log_action(playbook_name, extra_vars, result):
         f"RETURN_CODE: {result.get('return_code')}\n"
     )
 
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     with open(LOG_FILE, 'a') as f:
         f.write(log_entry)
 
