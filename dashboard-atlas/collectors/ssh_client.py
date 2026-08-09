@@ -60,6 +60,7 @@ def ssh_execute(ip, username, password, command, timeout=30, is_fortigate=False)
     dans le conteneur alpine-admin.
 
     Utilise SSH_ASKPASS natif OpenSSH (aucun besoin de sshpass).
+    - Support du flag pseudo-terminal -tt requis par FortiOS (FortiGate)
     - Détection dynamique de l'ID du conteneur (anti-reset GNS3)
     - Syntaxe exacte sans espaces pour -oKexAlgorithms et -oHostKeyAlgorithms
     - Guard anti-replay / anti-deadlock avec ServerAliveInterval=5 et ServerAliveCountMax=2
@@ -67,12 +68,18 @@ def ssh_execute(ip, username, password, command, timeout=30, is_fortigate=False)
     try:
         container_id = get_alpine_container_id()
 
+        # FortiGate (FortiOS) exige l'allocation d'un pseudo-tty (-tt) pour accepter les commandes non-interactives
+        if is_fortigate or ip.endswith(".1"):
+            pty_flag = "-tt "
+        else:
+            pty_flag = ""
+
         # Injection SSH_ASKPASS natif dans le conteneur Alpine
         askpass_setup = f"echo '#!/bin/sh' > /tmp/ap.sh && echo 'echo \"{password}\"' >> /tmp/ap.sh && chmod +x /tmp/ap.sh"
 
         ssh_cmd = (
             f"{askpass_setup} && "
-            f"SSH_ASKPASS=/tmp/ap.sh DISPLAY=:0 SSH_ASKPASS_REQUIRE=force ssh "
+            f"SSH_ASKPASS=/tmp/ap.sh DISPLAY=:0 SSH_ASKPASS_REQUIRE=force ssh {pty_flag}"
             f"-oStrictHostKeyChecking=no "
             f"-oKexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1 "
             f"-oHostKeyAlgorithms=+ssh-rsa "
