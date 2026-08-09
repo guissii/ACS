@@ -17,7 +17,7 @@ def test_alpine():
         res = ssh_execute(
             ip="10.100.40.2",
             username="admin",
-            password="adminpassword",
+            password="admin",
             command="show ip int brief",
             timeout=15
         )

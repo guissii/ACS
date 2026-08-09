@@ -2,7 +2,7 @@
 # Pour l'instant, stockées en clair.
 # En environnement de production, utiliser : ansible-vault encrypt all.yml
 vault_username: "admin"
-vault_password: "atlas123"
+vault_password: "admin"
 
 # ── Jump Host alpine-admin ────────────────────────────────────────────────────
 # La VM Ubuntu (Flask) ne peut pas atteindre directement les équipements GNS3.

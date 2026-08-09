@@ -31,4 +31,4 @@ all:
       -o UserKnownHostsFile=/dev/null
       -o KexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1
       -o HostKeyAlgorithms=+ssh-rsa
-      -o ProxyJump=root@192.168.199.4
+      -o ProxyCommand="docker exec -i $(docker ps -q --filter ancestor=alpine-admin-final:latest || docker ps -q --filter name=alpine) nc %h %p"
