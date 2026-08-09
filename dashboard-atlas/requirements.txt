@@ -2,5 +2,6 @@ flask
 paramiko
 python-dotenv
 flask-socketio
+flask-cors
 ansible
 netmiko

@@ -1,21 +1,22 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO
+from flask_cors import CORS
 from automation.ansible_runner import run_playbook
 import os
 import glob
+import datetime
 from threading import Thread
 
 app = Flask(__name__)
-# Configurations basiques
+# Configurations basiques & CORS
 app.config['SECRET_KEY'] = 'atlas_secret_key'
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # --- ROUTES DE MONITORING (Lecture Seule) ---
 
 @app.route('/api/vrrp/all', methods=['GET'])
 def get_vrrp_all():
-    # Ici, nous appellerions les collectors (ssh_client)
-    # Pour l'instant, on renvoie une structure mockée
     return jsonify({
         "CSR-BGR-1": {"state": "Master", "priority": 110},
         "CSR-BGR-2": {"state": "Backup", "priority": 100}
@@ -86,11 +87,10 @@ def run_backup_async():
     if result['success']:
         socketio.emit('automation_status', {'message': 'Backup terminé avec succès !', 'progress': 100})
     else:
-        socketio.emit('automation_status', {'message': 'Erreur lors du backup', 'progress': 100, 'error': result['stderr']})
+        socketio.emit('automation_status', {'message': 'Erreur lors du backup', 'progress': 100, 'error': result.get('stderr', 'Échec du playbook')})
 
 @app.route('/api/automation/backup-all-async', methods=['POST'])
 def backup_all_async():
-    # Lancement dans un thread séparé pour ne pas bloquer HTTP
     Thread(target=run_backup_async).start()
     return jsonify({"message": "Job asynchrone lancé"}), 202
 
