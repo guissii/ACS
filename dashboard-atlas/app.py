@@ -68,9 +68,6 @@ def create_vlan():
 
 @app.route('/api/automation/backup/<equipment_type>', methods=['POST'])
 def backup_equipment(equipment_type):
-    if equipment_type not in ['csr', 'fortigate', 'all']:
-        return jsonify({"error": "Type invalide (csr, fortigate, all)"}), 400
-        
     result = perform_direct_backup(equipment_type)
     return jsonify(result), 200 if result['success'] else 500
 
