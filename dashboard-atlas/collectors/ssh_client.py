@@ -68,11 +68,8 @@ def ssh_execute(ip, username, password, command, timeout=30, is_fortigate=False)
     try:
         container_id = get_alpine_container_id()
 
-        # FortiGate (FortiOS) exige l'allocation d'un pseudo-tty (-tt) pour accepter les commandes non-interactives
-        if is_fortigate or ip.endswith(".1"):
-            pty_flag = "-tt "
-        else:
-            pty_flag = ""
+        # Allocation d'un pseudo-tty (-tt) requis par Cisco IOS-XE et FortiOS pour les commandes SSH non-interactives
+        pty_flag = "-tt "
 
         # Injection SSH_ASKPASS natif dans le conteneur Alpine
         askpass_setup = f"echo '#!/bin/sh' > /tmp/ap.sh && echo 'echo \"{password}\"' >> /tmp/ap.sh && chmod +x /tmp/ap.sh"
