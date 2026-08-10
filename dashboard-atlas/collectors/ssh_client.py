@@ -92,14 +92,14 @@ def direct_port_check(ip, port, timeout=2):
 def telnet_execute(ip, username, password, command, timeout=5):
     """
     Exécute une commande via Telnet (port 23) via le conteneur Alpine
-    ou vérifie la connectivité Telnet directe si Docker n'est pas actif.
+    pour les équipements Cisco IOU / Routers sécurisés avec 'login local' (Username: admin, Secret: admin).
     """
     container_id = get_alpine_container_id()
 
     if container_id:
         try:
-            # Envoi d'une ligne vide initialement pour réveiller la CLI Cisco IOU / Router,
-            # puis identifiants, désactivation de la pagination, commande et exit.
+            # Séquence d'authentification Telnet sécurisée avec login local (username admin / secret admin)
+            # Envoi d'un saut de ligne pour afficher 'Username:', puis login, password, disable paging, command et exit.
             telnet_cmd = (
                 f"(echo ''; sleep 1; echo '{username}'; sleep 1; echo '{password}'; sleep 1; "
                 f"echo 'terminal length 0'; sleep 1; echo '{command}'; sleep 1; echo 'exit') | "
@@ -117,12 +117,15 @@ def telnet_execute(ip, username, password, command, timeout=5):
             output = res.stdout.strip()
             if output and any(kw in output for kw in ["#", ">", "Password:", "User", username, "IOS", "Cisco", "Config"]):
                 lines = output.splitlines()
-                clean_lines = [l for l in lines if not any(kw in l for kw in ["User Access Verification", "Username:", "Password:", "terminal length 0"])]
-                return {"success": True, "output": "\n".join(clean_lines).strip(), "method": "Telnet (Docker)"}
+                clean_lines = [
+                    l for l in lines 
+                    if not any(kw in l for kw in ["User Access Verification", "Username:", "Password:", "terminal length 0", "login local"])
+                ]
+                return {"success": True, "output": "\n".join(clean_lines).strip(), "method": "Telnet Securise (Docker)"}
             else:
                 # Le port Telnet (23) réponds mais la commande CLI n'a pas renvoyé le prompt formaté.
-                # L'équipement est bien ALLUMÉ et accessible via Telnet !
-                return {"success": True, "output": output or "Équipement Telnet allumé", "method": "Telnet (Port 23 En Ligne)"}
+                # L'équipement est ALLUMÉ et le port 23 réponds.
+                return {"success": True, "output": output or "Équipement Telnet allumé", "method": "Telnet Securise (Port 23 En Ligne)"}
                 
         except Exception as e:
             return {"success": False, "error": f"Erreur Telnet Docker : {str(e)}"}
