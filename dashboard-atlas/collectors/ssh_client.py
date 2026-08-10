@@ -1,4 +1,5 @@
 import subprocess
+import time
 
 # Cache local pour éviter de re-scanner Docker à chaque requête
 _cached_container_id = None
@@ -54,16 +55,45 @@ def get_alpine_container_id():
     raise Exception("Conteneur alpine-admin introuvable ou arrêté dans Docker.")
 
 
+def telnet_execute(ip, username, password, command, timeout=10):
+    """
+    Exécute une commande via Telnet (port 23) via le conteneur Alpine
+    pour les équipements Cisco IOU sans support SSH / Cryptographie.
+    """
+    try:
+        container_id = get_alpine_container_id()
+        
+        # Script expect/sh basique via netcat / busybox telnet dans Alpine
+        telnet_cmd = (
+            f"(sleep 1; echo '{username}'; sleep 1; echo '{password}'; sleep 1; echo 'terminal length 0'; sleep 1; echo '{command}'; sleep 2; echo 'exit') | "
+            f"docker exec -i {container_id} nc -w 10 {ip} 23"
+        )
+        
+        res = subprocess.run(
+            telnet_cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout + 5
+        )
+        
+        output = res.stdout.strip()
+        if output and any(kw in output for kw in ["#", ">", "Password:", "User", username]):
+            lines = output.splitlines()
+            clean_lines = [l for l in lines if not any(kw in l for kw in ["User Access Verification", "Username:", "Password:", "terminal length 0"])]
+            return {"success": True, "output": "\n".join(clean_lines).strip()}
+        else:
+            return {"success": False, "error": res.stderr.strip() or "Telnet injoignable"}
+            
+    except Exception as e:
+        return {"success": False, "error": f"Erreur Telnet : {str(e)}"}
+
+
 def ssh_execute(ip, username, password, command, timeout=30, is_fortigate=False):
     """
     Exécute une commande SSH sur un équipement GNS3 via 'docker exec'
     dans le conteneur alpine-admin.
-
-    Utilise SSH_ASKPASS natif OpenSSH (aucun besoin de sshpass).
-    - Support du flag pseudo-terminal -tt requis par FortiOS (FortiGate)
-    - Détection dynamique de l'ID du conteneur (anti-reset GNS3)
-    - Syntaxe exacte sans espaces pour -oKexAlgorithms et -oHostKeyAlgorithms
-    - Guard anti-replay / anti-deadlock avec ServerAliveInterval=5 et ServerAliveCountMax=2
+    Si SSH échoue (ex: IOU sans crypto / port 22 refusé), bascule automatiquement en Telnet (port 23).
     """
     try:
         container_id = get_alpine_container_id()
@@ -80,7 +110,7 @@ def ssh_execute(ip, username, password, command, timeout=30, is_fortigate=False)
             f"-oStrictHostKeyChecking=no "
             f"-oKexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1 "
             f"-oHostKeyAlgorithms=+ssh-rsa "
-            f"-oConnectTimeout=10 "
+            f"-oConnectTimeout=6 "
             f"-oServerAliveInterval=5 "
             f"-oServerAliveCountMax=2 "
             f"{username}@{ip} '{command}'"
@@ -98,9 +128,17 @@ def ssh_execute(ip, username, password, command, timeout=30, is_fortigate=False)
         if result.returncode == 0:
             return {"success": True, "output": result.stdout.strip()}
         else:
+            # Fallback automatique Telnet (port 23) pour les IOU sans SSH !
+            t_res = telnet_execute(ip, username, password, command, timeout=10)
+            if t_res.get("success"):
+                return t_res
             return {"success": False, "error": result.stderr.strip() or result.stdout.strip()}
 
     except subprocess.TimeoutExpired:
-        return {"success": False, "error": "Timeout - équipement injoignable ou bloqué (anti-replay)"}
+        # Fallback automatique Telnet en cas de timeout SSH
+        t_res = telnet_execute(ip, username, password, command, timeout=10)
+        if t_res.get("success"):
+            return t_res
+        return {"success": False, "error": "Timeout SSH & Telnet"}
     except Exception as e:
         return {"success": False, "error": str(e)}
