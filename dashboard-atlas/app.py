@@ -34,12 +34,23 @@ def get_devices_status():
     de chaque équipement GNS3 via le relais Alpine.
     """
     devices = [
-        {"id": "csr-bgr-1", "name": "CSR-BGR-1", "alias": "R-BGR-1", "ip": "10.100.40.2", "type": "csr"},
-        {"id": "csr-bgr-2", "name": "CSR-BGR-2", "alias": "R-BGR-2", "ip": "10.100.41.2", "type": "csr"},
-        {"id": "csr-bkp-1", "name": "CSR-BKP-1", "alias": "R-BGR-3", "ip": "10.200.40.2", "type": "csr"},
-        {"id": "csr-bkp-2", "name": "CSR-BKP-2", "alias": "R-BGR-4", "ip": "10.200.41.2", "type": "csr"},
+        # Routeurs Cœur CSR (SSH)
+        {"id": "csr-bgr-1", "name": "CSR-BGR-1", "alias": "CSR-BGR-1", "ip": "10.100.40.2", "type": "csr"},
+        {"id": "csr-bgr-2", "name": "CSR-BGR-2", "alias": "CSR-BGR-2", "ip": "10.100.41.2", "type": "csr"},
+        {"id": "csr-bkp-1", "name": "CSR-BKP-1", "alias": "CSR-BKP-1", "ip": "10.200.40.2", "type": "csr"},
+        {"id": "csr-bkp-2", "name": "CSR-BKP-2", "alias": "CSR-BKP-2", "ip": "10.200.41.2", "type": "csr"},
+        # Pare-feux FortiGate (SSH)
         {"id": "fgt-bgr-1-1", "name": "FGT-BGR-1-1", "alias": "FGT-BGR-1", "ip": "10.100.40.1", "type": "fortigate"},
         {"id": "fgt-bkp-1-1", "name": "FGT-BKP-1-1", "alias": "FGT-BKP-1", "ip": "10.200.40.1", "type": "fortigate"},
+        # Routeurs Bordure IOU (Telnet / SSH)
+        {"id": "r-bgr-1", "name": "R-BGR-1", "alias": "r-bgr-1", "ip": "10.100.40.3", "type": "csr"},
+        {"id": "r-bgr-2", "name": "R-BGR-2", "alias": "r-bgr-2", "ip": "10.100.41.3", "type": "csr"},
+        {"id": "r-bkp-3", "name": "R-BGR-3", "alias": "r-bkp-3", "ip": "10.200.40.3", "type": "csr"},
+        {"id": "r-bkp-4", "name": "R-BGR-4", "alias": "r-bkp-4", "ip": "10.200.41.3", "type": "csr"},
+        # Opérateurs ISP (Inwi, Orange, IAM)
+        {"id": "inw", "name": "Inw", "alias": "inw", "ip": "10.100.1.2", "type": "csr"},
+        {"id": "ora", "name": "Ora", "alias": "ora", "ip": "10.100.3.2", "type": "csr"},
+        {"id": "iam", "name": "IAM", "alias": "iam", "ip": "10.100.5.2", "type": "csr"},
     ]
     status_map = {}
     for dev in devices:
@@ -49,7 +60,7 @@ def get_devices_status():
             username="admin",
             password="admin",
             command=cmd,
-            timeout=4,
+            timeout=3,
             is_fortigate=(dev["type"] == "fortigate")
         )
         is_online = res.get("success", False)

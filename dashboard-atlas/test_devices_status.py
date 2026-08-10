@@ -7,12 +7,19 @@ def test_devices_status():
     print("==================================================")
 
     devices = [
-        {"name": "CSR-BGR-1 (R-BGR-1)", "ip": "10.100.40.2", "type": "csr"},
-        {"name": "CSR-BGR-2 (R-BGR-2)", "ip": "10.100.41.2", "type": "csr"},
-        {"name": "CSR-BKP-1 (R-BKP-1)", "ip": "10.200.40.2", "type": "csr"},
-        {"name": "CSR-BKP-2 (R-BKP-2)", "ip": "10.200.41.2", "type": "csr"},
+        {"name": "CSR-BGR-1", "ip": "10.100.40.2", "type": "csr"},
+        {"name": "CSR-BGR-2", "ip": "10.100.41.2", "type": "csr"},
+        {"name": "CSR-BKP-1", "ip": "10.200.40.2", "type": "csr"},
+        {"name": "CSR-BKP-2", "ip": "10.200.41.2", "type": "csr"},
         {"name": "FGT-BGR-1-1", "ip": "10.100.40.1", "type": "fortigate"},
         {"name": "FGT-BKP-1-1", "ip": "10.200.40.1", "type": "fortigate"},
+        {"name": "R-BGR-1 (IOU Bordure)", "ip": "10.100.40.3", "type": "csr"},
+        {"name": "R-BGR-2 (IOU Bordure)", "ip": "10.100.41.3", "type": "csr"},
+        {"name": "R-BGR-3 (IOU Bordure)", "ip": "10.200.40.3", "type": "csr"},
+        {"name": "R-BGR-4 (IOU Bordure)", "ip": "10.200.41.3", "type": "csr"},
+        {"name": "ISP Inwi (Inw)", "ip": "10.100.1.2", "type": "csr"},
+        {"name": "ISP Orange (Ora)", "ip": "10.100.3.2", "type": "csr"},
+        {"name": "ISP IAM (Maroc Telecom)", "ip": "10.100.5.2", "type": "csr"},
     ]
 
     try:
