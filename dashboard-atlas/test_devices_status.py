@@ -13,7 +13,7 @@ def test_devices_status():
     print("==================================================")
 
     devices = [
-        # Routeurs CSR (SSH)
+        # Routeurs Cœur CSR (SSH)
         {"name": "CSR-BGR-1", "ip": "10.100.40.2", "type": "csr", "protocol": "SSH"},
         {"name": "CSR-BGR-2", "ip": "10.100.41.2", "type": "csr", "protocol": "SSH"},
         {"name": "CSR-BKP-1", "ip": "10.200.40.2", "type": "csr", "protocol": "SSH"},
@@ -21,15 +21,11 @@ def test_devices_status():
         # Pare-feux FortiGate (SSH)
         {"name": "FGT-BGR-1-1", "ip": "10.100.40.1", "type": "fortigate", "protocol": "SSH"},
         {"name": "FGT-BKP-1-1", "ip": "10.200.40.1", "type": "fortigate", "protocol": "SSH"},
-        # Routeurs Bordure IOU (Telnet / SSH)
-        {"name": "R-BGR-1 (IOU Bordure)", "ip": "10.100.40.3", "type": "csr", "protocol": "Telnet/SSH"},
-        {"name": "R-BGR-2 (IOU Bordure)", "ip": "10.100.41.3", "type": "csr", "protocol": "Telnet/SSH"},
-        {"name": "R-BGR-3 (IOU Bordure)", "ip": "10.200.40.3", "type": "csr", "protocol": "Telnet/SSH"},
-        {"name": "R-BGR-4 (IOU Bordure)", "ip": "10.200.41.3", "type": "csr", "protocol": "Telnet/SSH"},
-        # Opérateurs ISP
-        {"name": "ISP Inwi (Inw)", "ip": "10.100.1.2", "type": "csr", "protocol": "Telnet/SSH"},
-        {"name": "ISP Orange (Ora)", "ip": "10.100.3.2", "type": "csr", "protocol": "Telnet/SSH"},
-        {"name": "ISP IAM (Maroc Telecom)", "ip": "10.100.5.2", "type": "csr", "protocol": "Telnet/SSH"},
+        # Routeurs Bordure IOU (Telnet direct)
+        {"name": "R-BGR-1", "ip": "1.1.1.1", "type": "csr", "protocol": "Telnet"},
+        {"name": "R-BGR-2", "ip": "1.1.1.2", "type": "csr", "protocol": "Telnet"},
+        {"name": "R-BGR-3", "ip": "4.4.4.1", "type": "csr", "protocol": "Telnet"},
+        {"name": "R-BGR-4", "ip": "4.4.4.2", "type": "csr", "protocol": "Telnet"},
     ]
 
     container_id = get_alpine_container_id()
@@ -49,7 +45,8 @@ def test_devices_status():
             password="admin",
             command=cmd,
             timeout=5,
-            is_fortigate=(dev["type"] == "fortigate")
+            is_fortigate=(dev["type"] == "fortigate"),
+            protocol=dev.get("protocol", "auto")
         )
         
         if res.get("success"):

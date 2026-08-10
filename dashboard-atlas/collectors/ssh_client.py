@@ -137,18 +137,23 @@ def telnet_execute(ip, username, password, command, timeout=5):
         return {"success": False, "error": f"Port Telnet (23) fermé/injoignable sur {ip}"}
 
 
-def ssh_execute(ip, username, password, command, timeout=10, is_fortigate=False):
+def ssh_execute(ip, username, password, command, timeout=10, is_fortigate=False, protocol="auto"):
     """
-    Exécute une commande SSH sur un équipement GNS3.
-    1. Teste rapidement si le port SSH (22) est ouvert dans Alpine (1s).
-    2. Si SSH est fermé/timeout, teste immédiatement si Telnet (23) est ouvert.
-    3. Si aucun port n'est ouvert, renvoie ÉTEINT sans attendre 30s.
+    Exécute une commande SSH ou Telnet sur un équipement GNS3.
+    - Si protocol='telnet', s'exécute directement via Telnet.
+    - Si protocol='ssh', s'exécute uniquement via SSH.
+    - Si protocol='auto', teste le port 22 (SSH) puis bascule sur le port 23 (Telnet).
     """
+    proto = str(protocol).lower()
+    
+    if proto == "telnet":
+        return telnet_execute(ip, username, password, command, timeout=timeout)
+
     container_id = get_alpine_container_id()
 
     if container_id:
-        # Step 1: Test rapide du port 22 (SSH)
-        ssh_open = check_port_in_alpine(container_id, ip, 22, timeout=2)
+        # Step 1: Test rapide du port 22 (SSH) si pas explicitement forcé telnet
+        ssh_open = check_port_in_alpine(container_id, ip, 22, timeout=2) if proto != "telnet" else False
 
         if ssh_open:
             try:
@@ -181,6 +186,10 @@ def ssh_execute(ip, username, password, command, timeout=10, is_fortigate=False)
             except Exception:
                 pass
 
+        # Si protocol == 'ssh', ne pas essayer Telnet
+        if proto == "ssh":
+            return {"success": False, "error": f"Équipement SSH {ip} non disponible (port 22)"}
+
         # Step 2: Si SSH indisponible ou échoué, tester le port 23 (Telnet)
         telnet_open = check_port_in_alpine(container_id, ip, 23, timeout=2)
         if telnet_open:
@@ -190,12 +199,13 @@ def ssh_execute(ip, username, password, command, timeout=10, is_fortigate=False)
         return {"success": False, "error": "Équipement éteint (Ports 22 & 23 inaccessibles)"}
 
     # Si Docker n'est pas actif sur la machine locale : Direct Socket SSH (port 22) ou Telnet (port 23)
-    if direct_port_check(ip, 22, timeout=2):
+    if proto != "telnet" and direct_port_check(ip, 22, timeout=2):
         return {"success": True, "output": f"Port SSH (22) ouvert sur {ip}", "method": "SSH Direct"}
     
-    if direct_port_check(ip, 23, timeout=2):
+    if proto != "ssh" and direct_port_check(ip, 23, timeout=2):
         return telnet_execute(ip, username, password, command, timeout=5)
 
     return {"success": False, "error": f"Équipement {ip} injoignable (SSH:22 & Telnet:23 fermés/éteint)"}
+
 
 
