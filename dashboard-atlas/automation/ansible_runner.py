@@ -43,8 +43,8 @@ def perform_direct_backup(equipment_type):
         {'name': 'CSR-BGR-2', 'ip': '10.100.41.2', 'cmd': 'show running-config', 'type': 'csr'},
         {'name': 'CSR-BKP-1', 'ip': '10.200.40.2', 'cmd': 'show running-config', 'type': 'csr'},
         {'name': 'CSR-BKP-2', 'ip': '10.200.41.2', 'cmd': 'show running-config', 'type': 'csr'},
-        {'name': 'FGT-BGR-1-1', 'ip': '10.100.40.1', 'cmd': 'get system status', 'type': 'fortigate', 'is_fgt': True},
-        {'name': 'FGT-BKP-1-1', 'ip': '10.200.40.1', 'cmd': 'get system status', 'type': 'fortigate', 'is_fgt': True},
+        {'name': 'FGT-BGR-1-1', 'ip': '10.100.40.1', 'cmd': 'show full-configuration', 'type': 'fortigate', 'is_fgt': True},
+        {'name': 'FGT-BKP-1-1', 'ip': '10.200.40.1', 'cmd': 'show full-configuration', 'type': 'fortigate', 'is_fgt': True},
     ]
 
     target = equipment_type.lower()
