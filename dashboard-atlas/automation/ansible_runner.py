@@ -56,9 +56,12 @@ def perform_direct_backup(equipment_type):
         inventory = [d for d in all_devices if d['type'] == 'csr']
     elif target == 'fortigate':
         inventory = [d for d in all_devices if d['type'] == 'fortigate']
-    else:
-        # Filtrer l'équipement spécifique par son nom (ex: CSR-BGR-1)
-        inventory = [d for d in all_devices if target in d['name'].lower()]
+        # Matcher par nom (ex: CSR-BGR-1, R-BGR-1, RBGR-1)
+        clean_target = target.replace('-', '').replace('csr', '').replace('r', '')
+        inventory = [
+            d for d in all_devices 
+            if target in d['name'].lower() or clean_target in d['name'].lower().replace('-', '').replace('csr', '')
+        ]
 
     if not inventory:
         inventory = [all_devices[0]]  # Fallback CSR-BGR-1 si non trouvé

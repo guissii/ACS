@@ -7,10 +7,10 @@ def test_devices_status():
     print("==================================================")
 
     devices = [
-        {"name": "CSR-BGR-1", "ip": "10.100.40.2", "type": "csr"},
-        {"name": "CSR-BGR-2", "ip": "10.100.41.2", "type": "csr"},
-        {"name": "CSR-BKP-1", "ip": "10.200.40.2", "type": "csr"},
-        {"name": "CSR-BKP-2", "ip": "10.200.41.2", "type": "csr"},
+        {"name": "CSR-BGR-1 (R-BGR-1)", "ip": "10.100.40.2", "type": "csr"},
+        {"name": "CSR-BGR-2 (R-BGR-2)", "ip": "10.100.41.2", "type": "csr"},
+        {"name": "CSR-BKP-1 (R-BKP-1)", "ip": "10.200.40.2", "type": "csr"},
+        {"name": "CSR-BKP-2 (R-BKP-2)", "ip": "10.200.41.2", "type": "csr"},
         {"name": "FGT-BGR-1-1", "ip": "10.100.40.1", "type": "fortigate"},
         {"name": "FGT-BKP-1-1", "ip": "10.200.40.1", "type": "fortigate"},
     ]
