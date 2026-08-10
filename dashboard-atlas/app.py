@@ -171,4 +171,4 @@ def get_backup_content(filename):
     return jsonify({"error": "Fichier introuvable"}), 404
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5050)

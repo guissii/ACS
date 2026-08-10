@@ -527,8 +527,10 @@ export default function Architecture() {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isDeployingVlan, setIsDeployingVlan] = useState(false);
 
-  // URL du backend Flask sur la VM Ubuntu
-  const API_BASE_URL = "http://192.168.48.129:5000/api";
+  // URL du backend Flask sur la VM Ubuntu (Port 5050)
+  const API_BASE_URL = typeof window !== 'undefined' 
+    ? `http://${window.location.hostname}:5050/api` 
+    : "http://localhost:5050/api";
 
   const [devicesStatus, setDevicesStatus] = useState<Record<string, { online: boolean, status: string, error?: string }>>({});
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
