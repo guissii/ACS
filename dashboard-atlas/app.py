@@ -34,12 +34,12 @@ def get_devices_status():
     de chaque équipement GNS3 via le relais Alpine.
     """
     devices = [
-        {"id": "csr-bgr-1", "name": "CSR-BGR-1", "ip": "10.100.40.2", "type": "csr"},
-        {"id": "csr-bgr-2", "name": "CSR-BGR-2", "ip": "10.100.41.2", "type": "csr"},
-        {"id": "csr-bkp-1", "name": "CSR-BKP-1", "ip": "10.200.40.2", "type": "csr"},
-        {"id": "csr-bkp-2", "name": "CSR-BKP-2", "ip": "10.200.41.2", "type": "csr"},
-        {"id": "fgt-bgr-1-1", "name": "FGT-BGR-1-1", "ip": "10.100.40.1", "type": "fortigate"},
-        {"id": "fgt-bkp-1-1", "name": "FGT-BKP-1-1", "ip": "10.200.40.1", "type": "fortigate"},
+        {"id": "csr-bgr-1", "name": "CSR-BGR-1", "alias": "R-BGR-1", "ip": "10.100.40.2", "type": "csr"},
+        {"id": "csr-bgr-2", "name": "CSR-BGR-2", "alias": "R-BGR-2", "ip": "10.100.41.2", "type": "csr"},
+        {"id": "csr-bkp-1", "name": "CSR-BKP-1", "alias": "R-BGR-3", "ip": "10.200.40.2", "type": "csr"},
+        {"id": "csr-bkp-2", "name": "CSR-BKP-2", "alias": "R-BGR-4", "ip": "10.200.41.2", "type": "csr"},
+        {"id": "fgt-bgr-1-1", "name": "FGT-BGR-1-1", "alias": "FGT-BGR-1", "ip": "10.100.40.1", "type": "fortigate"},
+        {"id": "fgt-bkp-1-1", "name": "FGT-BKP-1-1", "alias": "FGT-BKP-1", "ip": "10.200.40.1", "type": "fortigate"},
     ]
     status_map = {}
     for dev in devices:
@@ -53,7 +53,7 @@ def get_devices_status():
             is_fortigate=(dev["type"] == "fortigate")
         )
         is_online = res.get("success", False)
-        status_map[dev["name"]] = {
+        info = {
             "id": dev["id"],
             "name": dev["name"],
             "ip": dev["ip"],
@@ -62,6 +62,9 @@ def get_devices_status():
             "status": "online" if is_online else "offline",
             "error": res.get("error", None) if not is_online else None
         }
+        status_map[dev["name"]] = info
+        if "alias" in dev:
+            status_map[dev["alias"]] = info
     return jsonify(status_map)
 
 # --- ROUTES D'AUTOMATISATION (Ansible / Direct SSH Relay) ---

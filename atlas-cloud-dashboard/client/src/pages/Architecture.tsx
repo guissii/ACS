@@ -894,7 +894,11 @@ export default function Architecture() {
               const px = node.x * (CANVAS_W / 100);
               const py = node.y * (CANVAS_H / 100);
 
-              const devStatus = devicesStatus[node.name];
+              const devStatus = devicesStatus[node.name] || 
+                                devicesStatus[node.id] || 
+                                devicesStatus[node.name.replace(/^R-/, 'CSR-')] ||
+                                devicesStatus[node.name.replace('FGT-BGR-1-1', 'FGT-BGR-1')] ||
+                                devicesStatus[node.name.replace('FGT-BGR-1', 'FGT-BGR-1-1')];
               const isOnline = devStatus ? devStatus.online : (node.status === 'active');
 
               return (
